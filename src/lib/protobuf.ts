@@ -395,5 +395,8 @@ export async function exportProPresenterFile(doc: ProDocument): Promise<ArrayBuf
   const modifiedMessage = PresentationType.fromObject(presentation);
   const encoded = PresentationType.encode(modifiedMessage).finish();
   
-  return encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
+  // Create a new ArrayBuffer from the Uint8Array to avoid SharedArrayBuffer issues
+  const result = new ArrayBuffer(encoded.byteLength);
+  new Uint8Array(result).set(encoded);
+  return result;
 }

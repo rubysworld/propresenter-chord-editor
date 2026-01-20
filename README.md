@@ -33,7 +33,7 @@ Available as both a **web app** and a **desktop app** (macOS/Windows/Linux).
 ```bash
 git clone https://github.com/rubysworld/propresenter-chord-editor.git
 cd propresenter-chord-editor
-npm install
+npm install  # Automatically sets up git hooks via lefthook
 npm run dev
 ```
 
@@ -140,6 +140,12 @@ src-tauri/                   # Desktop app (Tauri)
 ## 🤝 Contributing
 
 PRs welcome! This project is under active development.
+
+**Git Hooks:** This project uses [lefthook](https://github.com/evilmartians/lefthook) to ensure code quality:
+- **Pre-commit**: Runs `npm run check` (type checking)
+- **Pre-push**: Runs `npm run build` (ensures buildable code)
+
+Hooks are automatically installed when you run `npm install`.
 
 ## 📄 License
 

@@ -134,6 +134,9 @@
           <!-- Chord above character -->
           {#if chordAtPos}
             <span 
+              role="button"
+              tabindex="0"
+              aria-label="Drag to reposition chord: {getTransposedChord(chordAtPos)}"
               class="chord-marker absolute -top-8 left-0 text-[var(--accent)] text-base font-bold whitespace-nowrap cursor-move"
               draggable="true"
               ondragstart={(e) => handleChordDragStart(chordAtPos, e)}

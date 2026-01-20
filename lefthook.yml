@@ -1,0 +1,14 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: typecheck
+      run: npm run check
+      stage_fixed: true
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: typecheck
+      run: npm run check
+    - name: build
+      run: npm run build

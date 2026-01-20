@@ -72,9 +72,11 @@
     aria-modal="true"
     tabindex="-1"
   >
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div 
       class="modal-content bg-[var(--bg-secondary)] rounded-xl p-6 min-w-96 shadow-2xl"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
     >
       <h2 class="text-xl font-semibold mb-4">
         {existingChord ? 'Edit Chord' : 'Add Chord'}
