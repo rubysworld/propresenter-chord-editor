@@ -10,5 +10,7 @@ pre-push:
   jobs:
     - name: typecheck
       run: npm run check
+    - name: test
+      run: npm test
     - name: build
       run: npm run build

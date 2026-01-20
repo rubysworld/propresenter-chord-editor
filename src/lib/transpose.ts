@@ -14,15 +14,23 @@ export const PP_KEY_MAP: Record<number, MusicKey> = {
 
 // Normalize key to semitone index (0-11)
 export function keyToSemitone(key: MusicKey): number {
-  const normalized = key.replace('b', '#');
-  const sharpIndex = KEYS.indexOf(normalized as typeof KEYS[number]);
+  // First check if it's already in KEYS
+  const sharpIndex = KEYS.indexOf(key as typeof KEYS[number]);
   if (sharpIndex >= 0) return sharpIndex;
   
   // Handle flats
   const flatMap: Record<string, number> = {
     'Db': 1, 'Eb': 3, 'Gb': 6, 'Ab': 8, 'Bb': 10
   };
-  return flatMap[key] ?? 0;
+  
+  if (key in flatMap) return flatMap[key];
+  
+  // Try converting flats to sharps
+  const normalized = key.replace('b', '#');
+  const normalizedIndex = KEYS.indexOf(normalized as typeof KEYS[number]);
+  if (normalizedIndex >= 0) return normalizedIndex;
+  
+  return 0;
 }
 
 // Parse chord string into components
