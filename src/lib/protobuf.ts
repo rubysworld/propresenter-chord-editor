@@ -167,6 +167,7 @@ function extractSlides(presentation: any): Slide[] {
     const cue = cues[i];
     
     // Get slide from cue's actions
+    // ProPresenter structure: cue.actions[].slide.presentation (PresentationSlide)
     let slideData: any = null;
     for (const action of cue.actions || []) {
       if (action.slide?.presentation) {
@@ -177,25 +178,35 @@ function extractSlides(presentation: any): Slide[] {
     
     if (!slideData) continue;
     
+    // KEY FIX: PresentationSlide.baseSlide contains the actual Slide with elements
+    // The old code checked slideData.elements first, which doesn't exist
+    const baseSlide = slideData.baseSlide;
+    if (!baseSlide) continue;
+    
+    const elements = baseSlide.elements || [];
+    
     // Extract text and chords from slide elements
     let text = '';
     const chords: Chord[] = [];
     
-    const elements = slideData.elements || slideData.baseSlide?.elements || [];
     for (const element of elements) {
-      const textElement = element.element?.text;
-      if (textElement?.rtfData) {
-        // Extract text from RTF
-        const elementText = rtfToText(textElement.rtfData);
-        if (elementText) {
-          text = elementText;
-        }
-        
-        // Extract chords from custom attributes
-        if (textElement.attributes?.customAttributes) {
-          const elementChords = parseChordData(textElement.attributes.customAttributes);
-          chords.push(...elementChords);
-        }
+      // Each element is a Slide.Element wrapping a Graphics.Element
+      const graphicsElement = element.element;
+      if (!graphicsElement) continue;
+      
+      const textElement = graphicsElement.text;
+      if (!textElement?.rtfData) continue;
+      
+      // Extract text from RTF
+      const elementText = rtfToText(textElement.rtfData);
+      if (elementText) {
+        text = elementText;
+      }
+      
+      // Extract chords from custom attributes
+      if (textElement.attributes?.customAttributes) {
+        const elementChords = parseChordData(textElement.attributes.customAttributes);
+        chords.push(...elementChords);
       }
     }
     
