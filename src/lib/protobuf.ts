@@ -178,12 +178,13 @@ function extractSlides(presentation: any): Slide[] {
     
     if (!slideData) continue;
     
-    // KEY FIX: PresentationSlide.baseSlide contains the actual Slide with elements
-    // The old code checked slideData.elements first, which doesn't exist
-    const baseSlide = slideData.baseSlide;
-    if (!baseSlide) continue;
+    // KEY FIX: PresentationSlide.base_slide contains the actual Slide with elements
+    // The protobuf uses snake_case (base_slide), not camelCase (baseSlide)!
+    // Handle both cases: with base_slide (full slides) and without (templates/empty slides)
+    const baseSlide = slideData.base_slide;
     
-    const elements = baseSlide.elements || [];
+    // Get elements from base_slide if it exists, otherwise empty array
+    const elements = baseSlide?.elements || [];
     
     // Extract text and chords from slide elements
     let text = '';
@@ -234,6 +235,8 @@ export async function parseProPresenterFile(buffer: ArrayBuffer): Promise<ProDoc
       longs: String,
       bytes: Array,
       defaults: true,
+      // Keep original field names (snake_case from proto)
+      // Don't convert to camelCase
     });
     
     // Extract slides with chords
