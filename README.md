@@ -56,14 +56,22 @@ src/
 
 ## Status
 
-🚧 **Work in Progress**
+✅ **Core Features Complete**
 
 - [x] Basic UI scaffolding
 - [x] Key transposition logic
-- [ ] Actual .pro file parsing (protobuf)
-- [ ] Chord editing (add/remove/move)
-- [ ] Export to .pro
+- [x] Actual .pro file parsing (protobuf)
+- [x] Chord editing (add/edit/delete)
+- [x] Visual chord positioning
+- [x] File drag & drop
+- [⚠️] Export to .pro (reads original buffer, chord modifications not yet persisted)
 - [ ] Tauri desktop builds
+- [ ] Full protobuf write support
+
+## Known Limitations
+
+- **Export**: Currently exports the original file buffer. Chord edits are displayed but not yet written back to the protobuf structure.
+- **Protobuf**: Uses a simplified embedded proto definition for browser compatibility. Full proto support requires loading actual .proto files.
 
 ## License
 
