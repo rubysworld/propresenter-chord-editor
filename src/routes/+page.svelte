@@ -14,42 +14,58 @@
   let history = new HistoryManager();
   let canUndo = $state(false);
   let canRedo = $state(false);
+  let isLoading = $state(false);
+  let errorMessage = $state<string | null>(null);
 
   async function handleFileDrop(e: DragEvent) {
     e.preventDefault();
     isDragging = false;
     
     const file = e.dataTransfer?.files[0];
-    if (file && file.name.endsWith('.pro')) {
-      const buffer = await file.arrayBuffer();
-      document = await parseProFile(buffer);
-      if (document?.originalKey) {
-        currentKey = document.originalKey;
-        targetKey = document.originalKey;
-        document.currentKey = document.originalKey;
-      }
-      // Initialize history with the loaded document
-      history.clear();
-      history.push(document);
-      updateHistoryState();
+    if (!file) return;
+    
+    if (!file.name.endsWith('.pro')) {
+      errorMessage = 'Please drop a .pro file (ProPresenter presentation)';
+      setTimeout(() => errorMessage = null, 3000);
+      return;
     }
+
+    await loadFile(file);
   }
 
   async function handleFileSelect(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    await loadFile(file);
+    input.value = ''; // Reset input
+  }
+
+  async function loadFile(file: File) {
+    isLoading = true;
+    errorMessage = null;
+    
+    try {
       const buffer = await file.arrayBuffer();
       document = await parseProFile(buffer);
+      
       if (document?.originalKey) {
         currentKey = document.originalKey;
         targetKey = document.originalKey;
         document.currentKey = document.originalKey;
       }
+      
       // Initialize history with the loaded document
       history.clear();
       history.push(document);
       updateHistoryState();
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : 'Failed to load file';
+      document = null;
+      console.error('Error loading file:', error);
+    } finally {
+      isLoading = false;
     }
   }
 
@@ -113,6 +129,9 @@
   async function handleExport() {
     if (!document) return;
     
+    isLoading = true;
+    errorMessage = null;
+    
     try {
       const buffer = await exportProFile(document);
       const blob = new Blob([buffer], { type: 'application/octet-stream' });
@@ -122,9 +141,16 @@
       a.download = document.name || 'export.pro';
       a.click();
       URL.revokeObjectURL(url);
+      
+      // Mark as no longer modified after successful export
+      if (document) {
+        document.modified = false;
+      }
     } catch (error) {
+      errorMessage = error instanceof Error ? error.message : 'Failed to export file';
       console.error('Export failed:', error);
-      alert('Failed to export file. See console for details.');
+    } finally {
+      isLoading = false;
     }
   }
 
@@ -192,6 +218,29 @@
     </div>
   </header>
 
+  <!-- Error Toast -->
+  {#if errorMessage}
+    <div class="fixed top-4 right-4 bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">⚠️</span>
+        <div>
+          <p class="font-semibold">Error</p>
+          <p class="text-sm">{errorMessage}</p>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Loading Overlay -->
+  {#if isLoading}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
+      <div class="bg-[var(--bg-primary)] rounded-lg p-8 flex flex-col items-center gap-4">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-[var(--accent)] border-t-transparent"></div>
+        <p class="text-[var(--text-primary)]">Loading...</p>
+      </div>
+    </div>
+  {/if}
+
   <!-- Main Content -->
   <div class="flex flex-1 overflow-hidden">
     {#if document}
@@ -214,14 +263,16 @@
       </main>
     {:else}
       <!-- Empty State / Drop Zone -->
-      <div class="flex-1 flex items-center justify-center">
+      <div class="flex-1 flex items-center justify-center p-8">
         <div 
-          class="text-center p-12 border-2 border-dashed rounded-2xl transition-colors {isDragging ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[var(--border)]'}"
+          class="text-center p-12 border-2 border-dashed rounded-2xl transition-colors max-w-lg {isDragging ? 'border-[var(--accent)] bg-[var(--accent)]/10' : 'border-[var(--border)]'}"
         >
           <div class="text-5xl mb-4">🎵</div>
-          <h2 class="text-xl font-semibold mb-2">Drop a .pro file here</h2>
-          <p class="text-[var(--text-secondary)] mb-4">or click to browse</p>
-          <label class="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg text-sm font-medium cursor-pointer transition-colors">
+          <h2 class="text-xl font-semibold mb-2">ProPresenter Chord Editor</h2>
+          <p class="text-[var(--text-secondary)] mb-6">
+            Drop a .pro file here to edit chords, transpose keys, and more.
+          </p>
+          <label class="inline-block px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg text-sm font-medium cursor-pointer transition-colors">
             Choose File
             <input 
               type="file" 
@@ -230,6 +281,16 @@
               onchange={handleFileSelect}
             />
           </label>
+          <div class="mt-8 text-left text-sm text-[var(--text-secondary)] space-y-2">
+            <p class="font-semibold text-[var(--text-primary)]">Features:</p>
+            <ul class="list-disc list-inside space-y-1">
+              <li>Edit chord positions by clicking on any character</li>
+              <li>Drag chords to reposition them</li>
+              <li>Transpose all chords to a different key</li>
+              <li>Undo/Redo with Ctrl+Z / Ctrl+Y</li>
+              <li>Export modified .pro files</li>
+            </ul>
+          </div>
         </div>
       </div>
     {/if}
