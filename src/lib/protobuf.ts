@@ -28,41 +28,24 @@ async function loadProtoDefinitions(): Promise<protobuf.Root> {
     // Browser environment
     protoRoot = new protobuf.Root();
     
-    // Set up resolver to fetch from /proto/ directory
-    protoRoot.resolvePath = (_origin, target) => {
-      return `/proto/Proto 19beta/${target}`;
+    // Implement custom fetch for protobufjs to load imports
+    // @ts-ignore - fetch is a valid property on Root
+    protoRoot.fetch = async (filename: string, callback: any) => {
+      try {
+        const response = await fetch(`/proto/Proto 19beta/${filename}`);
+        if (!response.ok) {
+          return callback(new Error(`Failed to fetch ${filename}: ${response.statusText}`));
+        }
+        const content = await response.text();
+        callback(null, content);
+      } catch (e) {
+        callback(e);
+      }
     };
 
-    // Load key proto files in order
-    const protoFiles = [
-      'basicTypes.proto',
-      'rvtimestamp.proto',
-      'uuid.proto',
-      'graphicsData.proto',
-      'effects.proto',
-      'background.proto',
-      'slide.proto',
-      'action.proto',
-      'cue.proto',
-      'groups.proto',
-      'presentationSlide.proto',
-      'presentation.proto',
-    ];
-
-    // For browser, we'll load the main presentation.proto file
-    // which will automatically pull in dependencies via imports
+    // Load presentation.proto - it will automatically fetch all imports
     try {
-      const response = await fetch('/proto/Proto 19beta/presentation.proto');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch presentation.proto: ${response.statusText}`);
-      }
-      const content = await response.text();
-      
-      // Use protobuf.parse which returns a Root
-      const parsed = protobuf.parse(content, { keepCase: true });
-      if (parsed.root) {
-        protoRoot = parsed.root;
-      }
+      await protoRoot.load('presentation.proto', { keepCase: true });
     } catch (e) {
       console.error('Failed to load proto definitions in browser:', e);
       throw e;
