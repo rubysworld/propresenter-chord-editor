@@ -1,0 +1,3 @@
+[submodule "static/proto"]
+	path = static/proto
+	url = https://github.com/greyshirtguy/ProPresenter7-Proto.git
