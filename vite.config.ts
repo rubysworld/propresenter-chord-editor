@@ -7,5 +7,19 @@ export default defineConfig({
   test: {
     include: ['src/**/*.{test,spec}.{js,ts}'],
     globals: true
+  },
+  resolve: {
+    alias: {
+      // Exclude Node.js-only files from browser builds
+      './protobuf.node.js': './protobuf.node.ts'
+    }
+  },
+  build: {
+    rollupOptions: {
+      external: (id) => {
+        // Don't bundle protobuf.node in browser builds
+        return id.includes('protobuf.node');
+      }
+    }
   }
 });
