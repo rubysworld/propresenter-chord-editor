@@ -6,14 +6,19 @@
   interface Props {
     slide: Slide;
     semitoneShift?: number;
+    onModified?: () => void;
   }
 
-  let { slide, semitoneShift = 0 }: Props = $props();
+  let { slide, semitoneShift = 0, onModified }: Props = $props();
 
   // Modal state
   let showModal = $state(false);
   let editPosition = $state(0);
   let editingChord = $state<Chord | undefined>(undefined);
+
+  // Drag state
+  let draggingChord = $state<Chord | null>(null);
+  let dragTargetPosition = $state<number | null>(null);
 
   // Split text into characters for positioning
   let characters = $derived(slide.text.split(''));
@@ -45,18 +50,63 @@
       slide.chords.push(chord);
       slide.chords.sort((a, b) => a.position - b.position);
     }
+    onModified?.();
     showModal = false;
   }
 
   // Delete chord
   function handleDeleteChord() {
     slide.chords = slide.chords.filter(c => c.position !== editPosition);
+    onModified?.();
     showModal = false;
   }
 
   // Close modal
   function handleCloseModal() {
     showModal = false;
+  }
+
+  // Drag handlers
+  function handleChordDragStart(chord: Chord, e: DragEvent) {
+    draggingChord = chord;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', chord.display);
+    }
+  }
+
+  function handleChordDragEnd() {
+    draggingChord = null;
+    dragTargetPosition = null;
+  }
+
+  function handleCharDragOver(position: number, e: DragEvent) {
+    if (!draggingChord) return;
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    dragTargetPosition = position;
+  }
+
+  function handleCharDrop(position: number, e: DragEvent) {
+    e.preventDefault();
+    if (!draggingChord || position === draggingChord.position) {
+      draggingChord = null;
+      dragTargetPosition = null;
+      return;
+    }
+
+    // Move the chord to the new position
+    const chordIndex = slide.chords.findIndex(c => c === draggingChord);
+    if (chordIndex >= 0) {
+      slide.chords[chordIndex] = { ...draggingChord, position };
+      slide.chords.sort((a, b) => a.position - b.position);
+      onModified?.();
+    }
+
+    draggingChord = null;
+    dragTargetPosition = null;
   }
 </script>
 
@@ -70,17 +120,26 @@
       {#if char === '\n'}
         <br />
       {:else}
+        {@const chordAtPos = getChordAt(i)}
+        {@const isDragTarget = dragTargetPosition === i}
         <span 
           role="button"
           tabindex="0"
-          class="char-wrapper relative inline-block cursor-pointer hover:bg-[var(--accent)]/20 rounded"
+          class="char-wrapper relative inline-block cursor-pointer hover:bg-[var(--accent)]/20 rounded {isDragTarget ? 'bg-[var(--accent)]/30' : ''}"
           onclick={() => handleCharClick(i)}
           onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCharClick(i); }}
+          ondragover={(e) => handleCharDragOver(i, e)}
+          ondrop={(e) => handleCharDrop(i, e)}
         >
           <!-- Chord above character -->
-          {#if getChordAt(i)}
-            <span class="chord-marker absolute -top-8 left-0 text-[var(--accent)] text-base font-bold whitespace-nowrap">
-              {getTransposedChord(getChordAt(i)!)}
+          {#if chordAtPos}
+            <span 
+              class="chord-marker absolute -top-8 left-0 text-[var(--accent)] text-base font-bold whitespace-nowrap cursor-move"
+              draggable="true"
+              ondragstart={(e) => handleChordDragStart(chordAtPos, e)}
+              ondragend={handleChordDragEnd}
+            >
+              {getTransposedChord(chordAtPos)}
             </span>
           {/if}
           <!-- The character itself -->

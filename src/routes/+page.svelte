@@ -1,6 +1,7 @@
 <script lang="ts">
   import { parseProFile, exportProFile, type ProDocument, type Slide, type Chord } from '$lib/parser';
   import { transposeChord, keyToSemitone, type MusicKey } from '$lib/transpose';
+  import { HistoryManager } from '$lib/history';
   import ChordEditor from '$lib/components/ChordEditor.svelte';
   import KeySelector from '$lib/components/KeySelector.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
@@ -10,6 +11,9 @@
   let currentKey = $state<MusicKey>('C');
   let targetKey = $state<MusicKey>('C');
   let isDragging = $state(false);
+  let history = new HistoryManager();
+  let canUndo = $state(false);
+  let canRedo = $state(false);
 
   async function handleFileDrop(e: DragEvent) {
     e.preventDefault();
@@ -22,7 +26,12 @@
       if (document?.originalKey) {
         currentKey = document.originalKey;
         targetKey = document.originalKey;
+        document.currentKey = document.originalKey;
       }
+      // Initialize history with the loaded document
+      history.clear();
+      history.push(document);
+      updateHistoryState();
     }
   }
 
@@ -35,12 +44,70 @@
       if (document?.originalKey) {
         currentKey = document.originalKey;
         targetKey = document.originalKey;
+        document.currentKey = document.originalKey;
       }
+      // Initialize history with the loaded document
+      history.clear();
+      history.push(document);
+      updateHistoryState();
     }
   }
 
   function handleKeyChange(newKey: MusicKey) {
     targetKey = newKey;
+    if (document) {
+      document.currentKey = newKey;
+      document.modified = true;
+    }
+  }
+
+  function markModified() {
+    if (document) {
+      document.modified = true;
+      history.push(document);
+      updateHistoryState();
+    }
+  }
+
+  function updateHistoryState() {
+    canUndo = history.canUndo();
+    canRedo = history.canRedo();
+  }
+
+  function handleUndo() {
+    if (!document) return;
+    const restored = history.undo(document);
+    if (restored) {
+      document = restored;
+      currentKey = document.originalKey || 'C';
+      targetKey = document.currentKey || currentKey;
+      updateHistoryState();
+    }
+  }
+
+  function handleRedo() {
+    if (!document) return;
+    const restored = history.redo(document);
+    if (restored) {
+      document = restored;
+      currentKey = document.originalKey || 'C';
+      targetKey = document.currentKey || currentKey;
+      updateHistoryState();
+    }
+  }
+
+  function handleKeyboard(e: KeyboardEvent) {
+    // Undo: Ctrl+Z (Win/Linux) or Cmd+Z (Mac)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      handleUndo();
+    }
+    // Redo: Ctrl+Y (Win/Linux) or Cmd+Shift+Z (Mac)
+    if (((e.ctrlKey || e.metaKey) && e.key === 'y') || 
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z')) {
+      e.preventDefault();
+      handleRedo();
+    }
   }
 
   async function handleExport() {
@@ -72,6 +139,8 @@
   let semitoneShift = $derived(keyToSemitone(targetKey) - keyToSemitone(currentKey));
 </script>
 
+<svelte:window onkeydown={handleKeyboard} />
+
 <div 
   role="application"
   class="h-screen flex flex-col"
@@ -90,6 +159,24 @@
     
     <div class="flex items-center gap-4">
       {#if document}
+        <div class="flex gap-2">
+          <button 
+            class="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onclick={handleUndo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            ↶ Undo
+          </button>
+          <button 
+            class="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onclick={handleRedo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Y)"
+          >
+            ↷ Redo
+          </button>
+        </div>
         <KeySelector 
           {currentKey} 
           {targetKey} 
@@ -99,7 +186,7 @@
           class="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg text-sm font-medium transition-colors"
           onclick={handleExport}
         >
-          Export .pro
+          Export .pro {document.modified ? '(modified)' : ''}
         </button>
       {/if}
     </div>
@@ -121,6 +208,7 @@
           <ChordEditor 
             slide={selectedSlide}
             {semitoneShift}
+            onModified={markModified}
           />
         {/if}
       </main>

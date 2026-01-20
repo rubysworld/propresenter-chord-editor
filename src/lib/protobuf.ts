@@ -5,7 +5,7 @@
 
 import protobuf from 'protobufjs';
 import type { Chord, ProDocument, Slide } from './parser';
-import { PP_KEY_MAP, type MusicKey } from './transpose';
+import { PP_KEY_MAP, transposeChord, keyToSemitone, type MusicKey } from './transpose';
 
 // Cached proto root
 let protoRoot: protobuf.Root | null = null;
@@ -293,11 +293,107 @@ export async function parseProPresenterFile(buffer: ArrayBuffer): Promise<ProDoc
 }
 
 /**
- * Export back to .pro format
- * TODO: Implement actual protobuf encoding
+ * Export back to .pro format with modifications
  */
 export async function exportProPresenterFile(doc: ProDocument): Promise<ArrayBuffer> {
-  console.log('Export not yet implemented:', doc.name);
-  // Return the original buffer for now
-  return doc.rawData || new ArrayBuffer(0);
+  if (!doc.rawData) {
+    throw new Error('No original file data to export');
+  }
+
+  const root = await loadProtoDefinitions();
+  const PresentationType = root.lookupType('rv.data.Presentation');
+  
+  // Decode the original message
+  const message = PresentationType.decode(new Uint8Array(doc.rawData));
+  const presentation = PresentationType.toObject(message, {
+    longs: String,
+    bytes: Uint8Array,
+    defaults: true,
+  }) as any;
+
+  // Update the name if changed
+  if (doc.name) {
+    presentation.name = doc.name;
+  }
+
+  // Update music key if changed
+  if (doc.currentKey && doc.currentKey !== doc.originalKey) {
+    const musicKeyValue = Object.entries(PP_KEY_MAP).find(([_, key]) => key === doc.currentKey)?.[0];
+    if (musicKeyValue && presentation.music) {
+      presentation.music.user = {
+        musicKey: parseInt(musicKeyValue),
+        musicScale: presentation.music.original?.musicScale || 0
+      };
+    }
+  }
+
+  // Build a map of slide ID to modified slide data
+  const slideMap = new Map<string, Slide>();
+  for (const slide of doc.slides) {
+    slideMap.set(slide.id, slide);
+  }
+
+  // Update slides with chord modifications
+  for (const cue of presentation.cues || []) {
+    const cueId = cue.uuid?.string;
+    if (!cueId) continue;
+
+    const modifiedSlide = slideMap.get(cueId);
+    if (!modifiedSlide) continue;
+
+    // Update each action's slide data
+    for (const action of cue.actions || []) {
+      const baseSlide = action.slide?.presentation?.baseSlide;
+      if (!baseSlide) continue;
+
+      // Update text elements with new chord data
+      for (const element of baseSlide.elements || []) {
+        const textElement = element.element?.text;
+        if (!textElement) continue;
+
+        // Rebuild custom attributes with modified chords
+        if (!textElement.attributes) {
+          textElement.attributes = { customAttributes: [] };
+        }
+
+        // Clear existing chord attributes
+        textElement.attributes.customAttributes = (textElement.attributes.customAttributes || [])
+          .filter((attr: any) => !attr.chord);
+
+        // Calculate semitone shift for transposition
+        const semitoneShift = doc.currentKey && doc.originalKey
+          ? keyToSemitone(doc.currentKey) - keyToSemitone(doc.originalKey)
+          : 0;
+
+        // Add modified chords (with transposition if needed)
+        for (const chord of modifiedSlide.chords) {
+          // Transpose if needed
+          let chordRoot = chord.root;
+          if (semitoneShift !== 0) {
+            const transposedDisplay = transposeChord(chord.display, semitoneShift);
+            // Extract just the root from transposed chord (first 1-2 chars)
+            chordRoot = transposedDisplay.match(/^[A-G][b#]?/)?.[0] || chord.root;
+          }
+
+          textElement.attributes.customAttributes.push({
+            chord: {
+              root: chordRoot,
+              quality: chord.quality,
+              number: chord.extension || 0
+            },
+            range: {
+              location: chord.position,
+              length: chord.display.length
+            }
+          });
+        }
+      }
+    }
+  }
+
+  // Re-encode the modified presentation
+  const modifiedMessage = PresentationType.fromObject(presentation);
+  const encoded = PresentationType.encode(modifiedMessage).finish();
+  
+  return encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength);
 }

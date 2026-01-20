@@ -20,7 +20,9 @@ export interface ProDocument {
   name: string;
   slides: Slide[];
   originalKey?: MusicKey;
+  currentKey?: MusicKey; // User's selected key (for transposition)
   rawData?: ArrayBuffer;
+  modified?: boolean; // Track if document has been modified
 }
 
 // Quality enum to string
