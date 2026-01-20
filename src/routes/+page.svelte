@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { parseProFile, type ProDocument, type Slide, type Chord } from '$lib/parser';
+  import { parseProFile, exportProFile, type ProDocument, type Slide, type Chord } from '$lib/parser';
   import { transposeChord, keyToSemitone, type MusicKey } from '$lib/transpose';
   import ChordEditor from '$lib/components/ChordEditor.svelte';
   import KeySelector from '$lib/components/KeySelector.svelte';
@@ -43,6 +43,24 @@
     targetKey = newKey;
   }
 
+  async function handleExport() {
+    if (!document) return;
+    
+    try {
+      const buffer = await exportProFile(document);
+      const blob = new Blob([buffer], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = document.name || 'export.pro';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export file. See console for details.');
+    }
+  }
+
   $effect(() => {
     // When target key changes, transpose all chords
     if (document && targetKey !== currentKey) {
@@ -79,7 +97,7 @@
         />
         <button 
           class="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-lg text-sm font-medium transition-colors"
-          onclick={() => {/* TODO: Export */}}
+          onclick={handleExport}
         >
           Export .pro
         </button>

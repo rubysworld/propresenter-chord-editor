@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Slide, Chord } from '$lib/parser';
   import { transposeChord, keyUsesFlats } from '$lib/transpose';
+  import ChordModal from './ChordModal.svelte';
 
   interface Props {
     slide: Slide;
@@ -8,6 +9,11 @@
   }
 
   let { slide, semitoneShift = 0 }: Props = $props();
+
+  // Modal state
+  let showModal = $state(false);
+  let editPosition = $state(0);
+  let editingChord = $state<Chord | undefined>(undefined);
 
   // Split text into characters for positioning
   let characters = $derived(slide.text.split(''));
@@ -25,14 +31,32 @@
 
   // Handle click to add/edit chord
   function handleCharClick(position: number) {
-    const existingChord = getChordAt(position);
-    if (existingChord) {
-      // TODO: Edit chord modal
-      console.log('Edit chord at', position, existingChord);
+    editPosition = position;
+    editingChord = getChordAt(position);
+    showModal = true;
+  }
+
+  // Save chord (add or update)
+  function handleSaveChord(chord: Chord) {
+    const existingIndex = slide.chords.findIndex(c => c.position === chord.position);
+    if (existingIndex >= 0) {
+      slide.chords[existingIndex] = chord;
     } else {
-      // TODO: Add chord modal
-      console.log('Add chord at', position);
+      slide.chords.push(chord);
+      slide.chords.sort((a, b) => a.position - b.position);
     }
+    showModal = false;
+  }
+
+  // Delete chord
+  function handleDeleteChord() {
+    slide.chords = slide.chords.filter(c => c.position !== editPosition);
+    showModal = false;
+  }
+
+  // Close modal
+  function handleCloseModal() {
+    showModal = false;
   }
 </script>
 
@@ -66,6 +90,15 @@
     {/each}
   </div>
 </div>
+
+<ChordModal
+  show={showModal}
+  position={editPosition}
+  existingChord={editingChord}
+  onSave={handleSaveChord}
+  onDelete={editingChord ? handleDeleteChord : undefined}
+  onClose={handleCloseModal}
+/>
 
 <style>
   .chord-editor {

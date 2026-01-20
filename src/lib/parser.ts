@@ -44,63 +44,24 @@ function chordToString(chord: { root: string; quality?: number; number?: number 
 
 // Parse a .pro file (protobuf format)
 export async function parseProFile(buffer: ArrayBuffer): Promise<ProDocument> {
-  // For now, return mock data for development
-  // TODO: Implement actual protobuf parsing using the proto definitions
-  // from ~/ruby/skills/propresenter-proto/
-  
-  console.log('Parsing .pro file, size:', buffer.byteLength);
-  
-  // Mock data for UI development
-  return {
-    name: 'Sample Song.pro',
-    originalKey: 'G',
-    slides: [
-      {
-        id: '1',
-        label: 'Verse 1',
-        text: 'Amazing grace how sweet the sound\nThat saved a wretch like me',
-        chords: [
-          { root: 'G', quality: 0, position: 0, display: 'G' },
-          { root: 'C', quality: 0, position: 14, display: 'C' },
-          { root: 'G', quality: 0, position: 25, display: 'G' },
-          { root: 'D', quality: 0, position: 36, display: 'D' },
-          { root: 'G', quality: 0, position: 51, display: 'G' },
-        ]
-      },
-      {
-        id: '2',
-        label: 'Verse 2',
-        text: "I once was lost but now I'm found\nWas blind but now I see",
-        chords: [
-          { root: 'G', quality: 0, position: 0, display: 'G' },
-          { root: 'C', quality: 0, position: 14, display: 'C' },
-          { root: 'G', quality: 0, position: 28, display: 'G' },
-          { root: 'D', quality: 0, position: 43, display: 'D' },
-          { root: 'G', quality: 0, position: 56, display: 'G' },
-        ]
-      },
-      {
-        id: '3',
-        label: 'Chorus',
-        text: 'How sweet the sound\nThat saved a wretch like me',
-        chords: [
-          { root: 'E', quality: 1, position: 0, display: 'Em' },
-          { root: 'C', quality: 0, position: 10, display: 'C' },
-          { root: 'G', quality: 0, position: 26, display: 'G' },
-          { root: 'D', quality: 0, position: 38, display: 'D' },
-        ]
-      }
-    ]
-  };
+  try {
+    const { parseProPresenterFile } = await import('./protobuf');
+    return await parseProPresenterFile(buffer);
+  } catch (error) {
+    console.error('Failed to parse .pro file:', error);
+    throw new Error('Failed to parse ProPresenter file. Make sure this is a valid .pro file.');
+  }
 }
 
 // Export a ProDocument back to .pro format
 export async function exportProFile(doc: ProDocument): Promise<ArrayBuffer> {
-  // TODO: Implement actual protobuf encoding
-  console.log('Exporting document:', doc.name);
-  
-  // For now, return empty buffer
-  return new ArrayBuffer(0);
+  try {
+    const { exportProPresenterFile } = await import('./protobuf');
+    return await exportProPresenterFile(doc);
+  } catch (error) {
+    console.error('Failed to export .pro file:', error);
+    throw new Error('Failed to export ProPresenter file.');
+  }
 }
 
 // Parse chord from ProPresenter's protobuf format
