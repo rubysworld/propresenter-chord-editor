@@ -1,6 +1,6 @@
 <script lang="ts">
   import { parseProFile, type ProDocument, type Slide, type Chord } from '$lib/parser';
-  import { transposeChord, KEYS, type MusicKey } from '$lib/transpose';
+  import { transposeChord, keyToSemitone, type MusicKey } from '$lib/transpose';
   import ChordEditor from '$lib/components/ChordEditor.svelte';
   import KeySelector from '$lib/components/KeySelector.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
@@ -51,10 +51,11 @@
   });
 
   let selectedSlide = $derived(document?.slides[selectedSlideIndex] ?? null);
-  let semitoneShift = $derived(KEYS.indexOf(targetKey) - KEYS.indexOf(currentKey));
+  let semitoneShift = $derived(keyToSemitone(targetKey) - keyToSemitone(currentKey));
 </script>
 
 <div 
+  role="application"
   class="h-screen flex flex-col"
   ondragover={(e) => { e.preventDefault(); isDragging = true; }}
   ondragleave={() => isDragging = false}

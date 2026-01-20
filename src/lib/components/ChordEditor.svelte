@@ -47,8 +47,11 @@
         <br />
       {:else}
         <span 
+          role="button"
+          tabindex="0"
           class="char-wrapper relative inline-block cursor-pointer hover:bg-[var(--accent)]/20 rounded"
           onclick={() => handleCharClick(i)}
+          onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCharClick(i); }}
         >
           <!-- Chord above character -->
           {#if getChordAt(i)}

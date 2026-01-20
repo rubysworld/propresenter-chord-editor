@@ -112,11 +112,17 @@ export function parseProChord(data: {
 }): Chord | null {
   if (!data.root) return null;
   
+  const chordData = {
+    root: data.root,
+    quality: data.quality,
+    number: data.number
+  };
+  
   return {
     root: data.root,
     quality: data.quality ?? 0,
     extension: data.number,
     position: data.range?.location ?? 0,
-    display: chordToString(data)
+    display: chordToString(chordData)
   };
 }
