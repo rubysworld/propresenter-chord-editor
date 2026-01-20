@@ -19,7 +19,7 @@ let protoRoot: protobuf.Root | null = null;
 export async function loadProtoDefinitionsNode(): Promise<protobuf.Root> {
   if (protoRoot) return protoRoot;
 
-  const protoDir = path.resolve(__dirname, '../../proto/Proto 19beta');
+  const protoDir = path.resolve(__dirname, '../../static/proto/Proto 19beta');
   
   protoRoot = new protobuf.Root();
   
